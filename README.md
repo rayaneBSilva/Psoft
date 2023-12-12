@@ -1,7 +1,7 @@
 # Psoft
 Repositório com laboratórios e projeto da disciplina Projeto de Software 
 
-Objetivos:
+Objetivos
 Este curso tem como objetivo principal capacitar os alunos em técnicas avançadas de projeto de software, com foco em sistemas orientados a objetos. Ao longo do programa, os alunos desenvolverão habilidades essenciais para:
 
 Compreender Princípios de Projeto Orientado a Objetos:
