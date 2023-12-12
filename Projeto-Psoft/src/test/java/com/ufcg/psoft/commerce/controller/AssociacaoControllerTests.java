@@ -2,7 +2,13 @@ package com.ufcg.psoft.commerce.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.ufcg.psoft.commerce.service.entregador.EntregadorService;
+import com.ufcg.psoft.commerce.exception.CustomErrorType;
+import com.ufcg.psoft.commerce.model.Associacao;
+import com.ufcg.psoft.commerce.model.Entregador;
+import com.ufcg.psoft.commerce.model.Estabelecimento;
+import com.ufcg.psoft.commerce.repository.AssociacaoRepository;
+import com.ufcg.psoft.commerce.repository.EntregadorRepository;
+import com.ufcg.psoft.commerce.repository.EstabelecimentoRepository;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -31,9 +37,6 @@ class AssociacaoControllerTests {
 
     @Autowired
     EntregadorRepository entregadorRepository;
-
-    @Autowired
-    EntregadorService entregadorService;
 
     @Autowired
     EstabelecimentoRepository estabelecimentoRepository;
@@ -123,6 +126,29 @@ class AssociacaoControllerTests {
             );
         }
 
+
+        @Test
+        @DisplayName("Quando criamos uma associacao com codigo de acesso invalido")
+        void testCriarAssociacaoComCodigoInvalido() throws Exception {
+            // Arrange
+
+            // Act
+            String responseJsonString = driver.perform(post(URI_ASSOCIACAO)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .param("entregadorId", entregador.getId().toString())
+                            .param("codigoAcesso", "111111")
+                            .param("estabelecimentoId", estabelecimento.getId().toString()))
+                    .andExpect(status().isBadRequest())
+                    .andDo(print())
+                    .andReturn().getResponse().getContentAsString();
+
+            CustomErrorType resultado = objectMapper.readValue(responseJsonString, CustomErrorType.class);
+
+            // Assert
+            assertEquals("Codigo de acesso invalido!", resultado.getMessage());
+
+        }
+
         @Test
         @DisplayName("Quando criamos uma associacao com estabelecimento inexistente")
         void testCriarAssociacaoComEstabelecimentoInexistente() throws Exception {
@@ -181,7 +207,7 @@ class AssociacaoControllerTests {
             associacaoRepository.save(Associacao.builder()
                     .entregadorId(entregador.getId())
                     .estabelecimentoId(estabelecimento.getId())
-                    .status(false)
+                    .statusAnalise(false)
                     .build()
             );
         }
@@ -206,8 +232,30 @@ class AssociacaoControllerTests {
             // Assert
             assertAll(
                     () -> assertEquals(1, associacaoRepository.count()),
-                    () -> assertTrue(resultado.isStatus())
+                    () -> assertTrue(resultado.isStatusAnalise())
             );
+        }
+
+        @Test
+        @DisplayName("Quando aprovamos uma associacao com codigo de acesso invalido")
+        void quandoAprovamosAssociacaoComCodigoInvalido() throws Exception {
+            // Arrange
+
+            // Act
+            String responseJsonString = driver.perform(put(URI_ASSOCIACAO)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .param("entregadorId", entregador.getId().toString())
+                            .param("estabelecimentoId", estabelecimento.getId().toString())
+                            .param("codigoAcesso", "111111"))
+                    .andExpect(status().isBadRequest())
+                    .andDo(print())
+                    .andReturn().getResponse().getContentAsString();
+
+            CustomErrorType resultado = objectMapper.readValue(responseJsonString, CustomErrorType.class);
+
+            // Assert
+            assertEquals("Codigo de acesso invalido!", resultado.getMessage());
+
         }
 
         @Test
@@ -220,7 +268,7 @@ class AssociacaoControllerTests {
                             .contentType(MediaType.APPLICATION_JSON)
                             .param("entregadorId", "9999")
                             .param("estabelecimentoId", estabelecimento.getId().toString())
-                            .param("codigoAcesso", entregador.getCodigoAcesso()))
+                            .param("codigoAcesso", estabelecimento.getCodigoAcesso()))
                     .andExpect(status().isBadRequest())
                     .andDo(print())
                     .andReturn().getResponse().getContentAsString();

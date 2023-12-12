@@ -3,6 +3,14 @@ package com.ufcg.psoft.commerce.controller;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.ufcg.psoft.commerce.dto.cliente.ClientePostPutRequestDTO;
+import com.ufcg.psoft.commerce.exception.CustomErrorType;
+import com.ufcg.psoft.commerce.model.Cliente;
+import com.ufcg.psoft.commerce.model.Estabelecimento;
+import com.ufcg.psoft.commerce.model.Sabor;
+import com.ufcg.psoft.commerce.repository.ClienteRepository;
+import com.ufcg.psoft.commerce.repository.EstabelecimentoRepository;
+import com.ufcg.psoft.commerce.repository.SaborRepository;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -152,7 +160,7 @@ public class ClienteControllerTests {
                     .andDo(print())
                     .andReturn().getResponse().getContentAsString();
 
-            ClienteResponseDTO resultado = objectMapper.readValue(responseJsonString, ClienteResponseDTO.ClienteResponseDTOBuilder.class).build();
+            ClientePostPutRequestDTO resultado = objectMapper.readValue(responseJsonString, ClientePostPutRequestDTO.ClientePostPutRequestDTOBuilder.class).build();
 
             // Assert
             assertEquals("Endereco Alterado", resultado.getEndereco());
@@ -360,7 +368,7 @@ public class ClienteControllerTests {
                     .andDo(print())
                     .andReturn().getResponse().getContentAsString();
 
-            ClienteResponseDTO resultado = objectMapper.readValue(responseJsonString, new TypeReference<>() {});
+            ClientePostPutRequestDTO resultado = objectMapper.readValue(responseJsonString, new TypeReference<>() {});
 
             // Assert
             assertAll(
@@ -398,7 +406,7 @@ public class ClienteControllerTests {
             // nenhuma necessidade além do setup()
 
             // Act
-            String responseJsonString = driver.perform(post(URI_CLIENTES)
+            String responseJsonString = driver.perform(post(URI_CLIENTES + "/create")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(clientePostPutRequestDTO)))
                     .andExpect(status().isCreated()) // Codigo 201
@@ -554,6 +562,7 @@ public class ClienteControllerTests {
 
         @Autowired
         EstabelecimentoRepository estabelecimentoRepository;
+
         @Autowired
         SaborRepository saborRepository;
 
@@ -596,7 +605,7 @@ public class ClienteControllerTests {
                     .andDo(print())
                     .andReturn().getResponse().getContentAsString();
 
-            SaborResponseDTO resultado = objectMapper.readValue(responseJsonString, SaborResponseDTO.SaborResponseDTOBuilder.class).build();
+            Sabor resultado = objectMapper.readValue(responseJsonString, Sabor.SaborBuilder.class).build();
 
             // Assert
             assertAll(
@@ -604,6 +613,7 @@ public class ClienteControllerTests {
                     () -> assertEquals(1, resultado.getClientesInteressados().size())
             );
         }
+
 
         @Test
         @DisplayName("Quando demonstramos interesse em um sabor com código de acesso inválido")
@@ -628,7 +638,7 @@ public class ClienteControllerTests {
             );
         }
 
-        @Test
+       @Test
         @DisplayName("Quando demonstramos interesse em um sabor inexistente")
         void quandoDemonstramosInteresseEmSaborInexistente() throws Exception {
             // Arrange

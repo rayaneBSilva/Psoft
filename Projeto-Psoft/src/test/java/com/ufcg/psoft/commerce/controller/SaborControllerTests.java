@@ -3,6 +3,12 @@ package com.ufcg.psoft.commerce.controller;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.ufcg.psoft.commerce.dto.sabor.SaborPostPutRequestDTO;
+import com.ufcg.psoft.commerce.exception.CustomErrorType;
+import com.ufcg.psoft.commerce.model.Estabelecimento;
+import com.ufcg.psoft.commerce.model.Sabor;
+import com.ufcg.psoft.commerce.repository.EstabelecimentoRepository;
+import com.ufcg.psoft.commerce.repository.SaborRepository;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -32,14 +38,14 @@ public class SaborControllerTests {
     @Autowired
     EstabelecimentoRepository estabelecimentoRepository;
 
-    ObjectMapper objectMapper = new ObjectMapper();
+    ObjectMapper objectMapper;
     Sabor sabor;
     Estabelecimento estabelecimento;
     SaborPostPutRequestDTO saborPostPutRequestDTO;
 
     @BeforeEach
     void setup() {
-        objectMapper.registerModule(new JavaTimeModule());
+        objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
         sabor = saborRepository.save(Sabor.builder()
                 .nome("Calabresa")
                 .tipo("salgado")
@@ -100,7 +106,7 @@ public class SaborControllerTests {
                     .andDo(print())
                     .andReturn().getResponse().getContentAsString();
 
-            List<SaborResponseDTO> resultado = objectMapper.readValue(responseJsonString, new TypeReference<>() {});
+            List<Sabor> resultado = objectMapper.readValue(responseJsonString, new TypeReference<>() {});
 
             // Assert
             assertAll(
@@ -124,7 +130,10 @@ public class SaborControllerTests {
                     .andDo(print())
                     .andReturn().getResponse().getContentAsString();
 
-            SaborResponseDTO resultado = objectMapper.readValue(responseJsonString, SaborResponseDTO.SaborResponseDTOBuilder.class).build();
+            List<Sabor> listaResultados = objectMapper.readValue(responseJsonString, new TypeReference<>() {
+            });
+            Sabor resultado = listaResultados.stream().findFirst().orElse(Sabor.builder().build());
+
 
             // Assert
             assertAll(
@@ -136,6 +145,7 @@ public class SaborControllerTests {
                     () -> assertEquals(sabor.isDisponivel(), resultado.isDisponivel())
             );
         }
+
 
         @Test
         @DisplayName("Quando buscamos um sabor inexistente")
@@ -201,7 +211,7 @@ public class SaborControllerTests {
                     .andDo(print())
                     .andReturn().getResponse().getContentAsString();
 
-            SaborResponseDTO resultado = objectMapper.readValue(responseJsonString, SaborResponseDTO.SaborResponseDTOBuilder.class).build();
+            Sabor resultado = objectMapper.readValue(responseJsonString, Sabor.SaborBuilder.class).build();
 
             // Assert
             assertAll(
@@ -212,6 +222,7 @@ public class SaborControllerTests {
                     () -> assertEquals(saborPostPutRequestDTO.getDisponivel(), resultado.isDisponivel())
             );
         }
+
 
         @Test
         @DisplayName("Quando alteramos o sabor com dados válidos")
@@ -230,7 +241,7 @@ public class SaborControllerTests {
                     .andDo(print())
                     .andReturn().getResponse().getContentAsString();
 
-            SaborResponseDTO resultado = objectMapper.readValue(responseJsonString, SaborResponseDTO.SaborResponseDTOBuilder.class).build();
+            Sabor resultado = objectMapper.readValue(responseJsonString, Sabor.SaborBuilder.class).build();
 
             // Assert
             assertAll(
@@ -265,6 +276,31 @@ public class SaborControllerTests {
             // Assert
             assertAll(
                     () -> assertEquals("O sabor consultado nao existe!", resultado.getMessage())
+            );
+        }
+
+        @Test
+        @DisplayName("Quando alteramos um sabor com codigo invalido")
+        void quandoAlteramosSaborComCodigoInvalido() throws Exception {
+            // Arrange
+            Long saborId = sabor.getId();
+
+            // Act
+            String responseJsonString = driver.perform(put(URI_SABORES)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .param("saborId", saborId.toString())
+                            .param("estabelecimentoId", estabelecimento.getId().toString())
+                            .param("estabelecimentoCodigoAcesso", "111111")
+                            .content(objectMapper.writeValueAsString(saborPostPutRequestDTO)))
+                    .andExpect(status().isBadRequest()) // Codigo 400
+                    .andDo(print())
+                    .andReturn().getResponse().getContentAsString();
+
+            CustomErrorType resultado = objectMapper.readValue(responseJsonString, CustomErrorType.class);
+
+            // Assert
+            assertAll(
+                    () -> assertEquals("Codigo de acesso invalido!", resultado.getMessage())
             );
         }
 
@@ -383,7 +419,7 @@ public class SaborControllerTests {
                     .andDo(print())
                     .andReturn().getResponse().getContentAsString();
 
-            SaborResponseDTO resultado = objectMapper.readValue(responseJsonString, SaborResponseDTO.SaborResponseDTOBuilder.class).build();
+            Sabor resultado = objectMapper.readValue(responseJsonString, Sabor.SaborBuilder.class).build();
 
             // Assert
             assertEquals("Portuguesa", resultado.getNome());
@@ -437,7 +473,7 @@ public class SaborControllerTests {
                     .andDo(print())
                     .andReturn().getResponse().getContentAsString();
 
-            SaborResponseDTO resultado = objectMapper.readValue(responseJsonString, SaborResponseDTO.SaborResponseDTOBuilder.class).build();
+            Sabor resultado = objectMapper.readValue(responseJsonString, Sabor.SaborBuilder.class).build();
 
             // Assert
             assertEquals("salgado", resultado.getTipo());
@@ -518,7 +554,7 @@ public class SaborControllerTests {
                     .andDo(print())
                     .andReturn().getResponse().getContentAsString();
 
-            SaborResponseDTO resultado = objectMapper.readValue(responseJsonString, SaborResponseDTO.SaborResponseDTOBuilder.class).build();
+            Sabor resultado = objectMapper.readValue(responseJsonString, Sabor.SaborBuilder.class).build();
 
             // Assert
             assertAll(
@@ -632,7 +668,7 @@ public class SaborControllerTests {
                     .andDo(print())
                     .andReturn().getResponse().getContentAsString();
 
-            SaborResponseDTO resultado = objectMapper.readValue(responseJsonString, SaborResponseDTO.SaborResponseDTOBuilder.class).build();
+            Sabor resultado = objectMapper.readValue(responseJsonString, Sabor.SaborBuilder.class).build();
 
             // Assert
             assertFalse(resultado.isDisponivel());
@@ -651,7 +687,7 @@ public class SaborControllerTests {
                             .param("estabelecimentoId", estabelecimento.getId().toString())
                             .param("estabelecimentoCodigoAcesso", estabelecimento.getCodigoAcesso())
                             .content(objectMapper.writeValueAsString(saborPostPutRequestDTO)))
-                    .andExpect(status().isBadRequest()) // Codigo 200
+                    .andExpect(status().isBadRequest()) 
                     .andDo(print())
                     .andReturn().getResponse().getContentAsString();
 
@@ -680,7 +716,7 @@ public class SaborControllerTests {
                     .andDo(print())
                     .andReturn().getResponse().getContentAsString();
 
-            SaborResponseDTO resultado = objectMapper.readValue(responseJsonString, SaborResponseDTO.SaborResponseDTOBuilder.class).build();
+            Sabor resultado = objectMapper.readValue(responseJsonString, Sabor.SaborBuilder.class).build();
 
             // Assert
             assertFalse(resultado.isDisponivel());
@@ -704,7 +740,7 @@ public class SaborControllerTests {
                     .andDo(print())
                     .andReturn().getResponse().getContentAsString();
 
-            SaborResponseDTO resultado = objectMapper.readValue(responseJsonString, SaborResponseDTO.SaborResponseDTOBuilder.class).build();
+            Sabor resultado = objectMapper.readValue(responseJsonString, Sabor.SaborBuilder.class).build();
 
             // Assert
             assertTrue(resultado.isDisponivel());

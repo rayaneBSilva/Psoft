@@ -3,6 +3,14 @@ package com.ufcg.psoft.commerce.controller;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.ufcg.psoft.commerce.dto.entregador.EntregadorGetRequestDTO;
+import com.ufcg.psoft.commerce.dto.entregador.EntregadorPostPutRequestDTO;
+import com.ufcg.psoft.commerce.dto.entregador.EntregadorResponseDTO;
+import com.ufcg.psoft.commerce.exception.CustomErrorType;
+import com.ufcg.psoft.commerce.model.Entregador;
+import com.ufcg.psoft.commerce.model.Estabelecimento;
+import com.ufcg.psoft.commerce.repository.EntregadorRepository;
+import com.ufcg.psoft.commerce.repository.EstabelecimentoRepository;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -11,6 +19,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -38,6 +47,9 @@ public class EntregadorControllerTests {
     EntregadorPostPutRequestDTO entregadorPostPutRequestDTO;
 
     EntregadorGetRequestDTO entregadorDTO;
+
+    @Autowired
+    EstabelecimentoRepository estabelecimentoRepository;
 
     @BeforeEach
     void setup() {
@@ -110,7 +122,7 @@ public class EntregadorControllerTests {
         @DisplayName("Quando buscamos por um entregador salvo pelo id")
         void quandoBuscamosEntregadorPorId() throws Exception {
             // Arrange
-            // nenhuma necessidade além do setup()
+            entregadorDTO.setCodigoAcesso("123456");
 
             // Act
             String responseJsonString = driver.perform(get(URI_ENTREGADORES + "/" + entregador.getId())
@@ -128,7 +140,8 @@ public class EntregadorControllerTests {
                     () -> assertEquals(entregadorDTO.getNome(), resultado.getNome()),
                     () -> assertEquals(entregadorDTO.getPlacaVeiculo(), resultado.getPlacaVeiculo()),
                     () -> assertEquals(entregadorDTO.getCorVeiculo(), resultado.getCorVeiculo()),
-                    () -> assertEquals(entregadorDTO.getTipoVeiculo(), resultado.getTipoVeiculo())
+                    () -> assertEquals(entregadorDTO.getTipoVeiculo(), resultado.getTipoVeiculo()),
+                    () -> assertEquals(entregadorDTO.getCodigoAcesso(), resultado.getCodigoAcesso())
             );
         }
 
@@ -150,6 +163,26 @@ public class EntregadorControllerTests {
 
             // Assert
             assertEquals("O entregador consultado nao existe!", resultado.getMessage());
+        }
+
+        @Test
+        @DisplayName("Quando buscamos um entregador com id invalido")
+        void quandoBuscamosEntregadorComIdInvalido() throws Exception {
+            // Arrange
+            // nenhuma necessidade além do setup()
+
+            // Act
+            String responseJsonString = driver.perform(get(URI_ENTREGADORES + "/-1")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(entregadorPostPutRequestDTO)))
+                    .andExpect(status().isBadRequest())
+                    .andDo(print())
+                    .andReturn().getResponse().getContentAsString();
+
+            CustomErrorType resultado = objectMapper.readValue(responseJsonString, CustomErrorType.class);
+
+            // Assert
+            assertEquals("O id consultado é invalido", resultado.getMessage());
         }
 
         @Test
@@ -622,6 +655,7 @@ public class EntregadorControllerTests {
         @DisplayName("Quando alteramos a disponibilidade do entregador para disponível")
         void quandoAlteramosDisponibilidadeParaDisponivel() throws Exception {
             // Arrange
+            entregadorPostPutRequestDTO.setId(entregador.getId());
 
             // Act
             String responseJsonString = driver.perform(put(URI_ENTREGADORES + "/" + entregador.getId() + "/disponibilidade")
@@ -637,12 +671,15 @@ public class EntregadorControllerTests {
 
             // Assert
             assertTrue(resultado.isDisponibilidade());
+            assertEquals(resultado.getStatusEntregador(), "Ativo");
         }
+
 
         @Test
         @DisplayName("Quando alteramos a disponibilidade do entregador para indisponível")
         void quandoAlteramosDisponibilidadeParaIndisponivel() throws Exception {
             // Arrange
+            entregadorPostPutRequestDTO.setId(entregador.getId());
 
             // Act
             String responseJsonString = driver.perform(put(URI_ENTREGADORES + "/" + entregador.getId() + "/disponibilidade")
@@ -654,7 +691,7 @@ public class EntregadorControllerTests {
                     .andDo(print())
                     .andReturn().getResponse().getContentAsString();
 
-            EntregadorResponseDTO resultado = objectMapper.readValue(responseJsonString, EntregadorResponseDTO.EntregadorResponseDTOBuilder.class).build();
+            Entregador resultado = objectMapper.readValue(responseJsonString, Entregador.EntregadorBuilder.class).build();
 
             // Assert
             assertFalse(resultado.isDisponibilidade());
@@ -682,6 +719,38 @@ public class EntregadorControllerTests {
         }
 
         @Test
+        @DisplayName("Quando alteramos a disponibilidade do entregador para disponível com estabelecimento associado")
+        void quandoAlteramosDisponibilidadeParaDisponivelComEstabelecimentoAssociado() throws Exception {
+            // Arrange
+            entregadorPostPutRequestDTO.setId(entregador.getId());
+            Estabelecimento estabelecimento = estabelecimentoRepository.save(Estabelecimento.builder()
+                    .codigoAcesso("654321")
+                    .build());
+
+            List<Entregador> entregadores = new LinkedList<>();
+            entregadores.add(entregador);
+            estabelecimento.setEntregadoresAprovados(entregadores);
+            estabelecimentoRepository.save(estabelecimento);
+
+
+            // Act
+            String responseJsonString = driver.perform(put(URI_ENTREGADORES + "/" + entregador.getId() + "/disponibilidade")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .param("codigoAcesso", entregador.getCodigoAcesso())
+                            .param("disponibilidade", "true")
+                            .content(objectMapper.writeValueAsString(entregadorPostPutRequestDTO)))
+                    .andExpect(status().isOk())
+                    .andDo(print())
+                    .andReturn().getResponse().getContentAsString();
+
+            Entregador resultado = objectMapper.readValue(responseJsonString, Entregador.class);
+
+            // Assert
+            assertTrue(resultado.isDisponibilidade());
+            assertEquals(resultado.getId(), entregador.getId());
+        }
+
+        @Test
         @DisplayName("Quando alteramos a disponibilidade de um entregador passando codigo de acesso inválido")
         void quandoAlteramosDisponibilidadeDeEntregadorComCodigoAcessoInvalido() throws Exception {
             // Arrange
@@ -701,6 +770,78 @@ public class EntregadorControllerTests {
             // Assert
             assertEquals("Codigo de acesso invalido!", resultado.getMessage());
             assertFalse(entregador.isDisponibilidade());
+        }
+    }
+
+
+    @Nested
+    @DisplayName("Conjunto de casos de testes para EntregadorGetRequestDTO")
+    class EntregadorGetRequestDTOTest {
+
+        @Test
+        public void testGettersAndSetters() {
+            EntregadorGetRequestDTO entregador = new EntregadorGetRequestDTO();
+            entregador.setId(1L);
+            entregador.setNome("Nome do Entregador");
+            entregador.setPlacaVeiculo("XYZ1234");
+            entregador.setTipoVeiculo("Moto");
+            entregador.setCorVeiculo("Azul");
+
+            assertEquals(Long.valueOf(1), entregador.getId());
+            assertEquals("Nome do Entregador", entregador.getNome());
+            assertEquals("XYZ1234", entregador.getPlacaVeiculo());
+            assertEquals("Moto", entregador.getTipoVeiculo());
+            assertEquals("Azul", entregador.getCorVeiculo());
+        }
+
+        @Test
+        public void testEqualsAndHashCode() {
+            EntregadorGetRequestDTO entregador1 = new EntregadorGetRequestDTO();
+            entregador1.setId(1L);
+
+            EntregadorGetRequestDTO entregador2 = new EntregadorGetRequestDTO();
+            entregador2.setId(1L);
+
+            EntregadorGetRequestDTO entregador3 = new EntregadorGetRequestDTO();
+            entregador3.setId(2L);
+
+            assertEquals(entregador1, entregador2);
+            assertEquals(entregador1.hashCode(), entregador2.hashCode());
+
+            assertNotEquals(entregador1, entregador3);
+            assertNotEquals(entregador2, entregador3);
+        }
+
+        @Test
+        public void testBuilder() {
+            EntregadorGetRequestDTO entregador = EntregadorGetRequestDTO.builder()
+                    .id(1L)
+                    .nome("Nome do Entregador")
+                    .placaVeiculo("XYZ1234")
+                    .tipoVeiculo("Moto")
+                    .corVeiculo("Azul")
+                    .codigoAcesso("12345")
+                    .build();
+
+            assertEquals(Long.valueOf(1), entregador.getId());
+            assertEquals("Nome do Entregador", entregador.getNome());
+            assertEquals("XYZ1234", entregador.getPlacaVeiculo());
+            assertEquals("Moto", entregador.getTipoVeiculo());
+            assertEquals("Azul", entregador.getCorVeiculo());
+            assertEquals("12345", entregador.getCodigoAcesso());
+        }
+
+        @Test
+        public void testAllArgsConstructor() {
+            EntregadorGetRequestDTO entregador = new EntregadorGetRequestDTO(
+                    1L, "Nome do Entregador", "XYZ1234", "Moto", "Azul", "12345");
+
+            assertEquals(Long.valueOf(1), entregador.getId());
+            assertEquals("Nome do Entregador", entregador.getNome());
+            assertEquals("XYZ1234", entregador.getPlacaVeiculo());
+            assertEquals("Moto", entregador.getTipoVeiculo());
+            assertEquals("Azul", entregador.getCorVeiculo());
+            assertEquals("12345", entregador.getCodigoAcesso());
         }
     }
 }
